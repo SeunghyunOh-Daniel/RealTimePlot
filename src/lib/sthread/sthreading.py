@@ -1,15 +1,35 @@
+"""
+
+Thread to get Property
+1. To Terminate
+2. To Stop
+3. To Get Priority
+
+"""
+
+# --------------------------------------------------------------------------------------------------------------------------------------
+
+# Library
 import threading
 import inspect
 import ctypes
 
 
+# --------------------------------------------------------------------------------------------------------------------------------------
+
 def _async_raise(tid, exctype):
     if tid is None:
+        # Thread is not alive, Pass
         return None
+
     """raises the exception, performs cleanup if needed"""
     if not inspect.isclass(exctype):
         raise TypeError("Only types can be raised (not instances)")
+
+    # Terminate the Thread
     res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+
+    # Exceptional Case
     if res == 0:
         raise ValueError("invalid thread id")
     elif res != 1:
@@ -34,7 +54,7 @@ class sThread(threading.Thread):
 
     def run(self):
         """
-        Override this method to return actual frame at current time.
+        Override this method to run the thread
         """
         if self.target is None:
             pass
@@ -46,18 +66,21 @@ class sThread(threading.Thread):
     def _get_my_tid(self):
         """determines this (self's) thread id"""
         if not self.is_alive():
-            # raise threading.ThreadError("the thread is not active")
+            # Thread is not alive, Pass
             return None
-        # do we have it cached?
+            # raise threading.ThreadError("the thread is not active")
+
+        # If it has cached,
         if hasattr(self, "_thread_id"):
             return self._thread_id
 
-        # no, look for it in the _active dict
+        # If not, looking for it in the _active dict
         for tid, tobj in threading._active.items():
             if tobj is self:
                 self._thread_id = tid
                 return tid
 
+        # If there is no thread id i need to find,
         raise AssertionError("could not determine the thread's id")
 
     def raise_exc(self, exctype):

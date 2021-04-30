@@ -24,8 +24,9 @@
 ################# Imports #########################
 import sys
 
+
 ####################### Functions ############################
-def print_progress (iteration, total, prefix = '', suffix = '', decimals = 1, barLength = 100):
+def print_progress(iteration, total, prefix='', suffix='', decimals=1, barLength=100):
     formatStr = "{0:." + str(decimals) + "f}"
     percent = formatStr.format(100 * (iteration / float(total)))
     filledLength = int(round(barLength * iteration / float(total)))

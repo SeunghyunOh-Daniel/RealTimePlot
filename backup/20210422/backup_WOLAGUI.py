@@ -7,7 +7,7 @@ print(os.getcwd())
 # pyaudio address
 sys.path.append("/EQInterpolation/env_OliveGUI/Lib/site-packages")
 sys.path.append("../../src/")
-sys.path.append("../../lib/")
+sys.path.append("../../src/lib/")
 
 import tkinter as tk
 from tkinter import ttk

@@ -17,7 +17,7 @@ def import_wav(path):
 # import wav file or mic data
 shared_frames = queue.Queue()
 
-wav_list = import_wav("./")
+wav_list = import_wav("/")
 
 # Processing Time: 0.00012460000000014126 sec
 def get_input_frame(input_frame):

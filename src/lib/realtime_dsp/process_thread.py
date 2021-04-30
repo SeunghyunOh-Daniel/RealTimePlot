@@ -1,3 +1,10 @@
+"""
+Thread for signal processing
+"""
+
+# --------------------------------------------------------------------------------------------------------------------------------------
+
+# Library
 import os
 import queue
 import threading
@@ -9,7 +16,10 @@ import scipy.io.wavfile as wav
 from sthread import sthreading
 
 
+# --------------------------------------------------------------------------------------------------------------------------------------
+
 def import_wav(path):
+    # import wav file from path
     file_list = []
     for file in os.listdir(path):
         if file.split(".")[-1] == "wav":
@@ -17,8 +27,8 @@ def import_wav(path):
     return file_list
 
 
-# Processing Time: 0.00012460000000014126 sec
 def get_input_frame(input_frame, data_queue, effect):
+    # Processing Time: 0.00012460000000014126 sec
     input_frame_local = input_frame
     if effect is None:
         val_coff = 1
@@ -42,15 +52,17 @@ def get_input_frame_ifft(input_frame):
     return input_frame_local
 
 
-# down sampling, 0.3690628 sec/each trial
 def down_sampling(sampling_frequency, data_wav, sample_rate):
+    # Down sampling, 0.3690628 sec/each trial
     import math
     down_sample_rate = sample_rate
     filename_down_sampling = 'src/down_sampling.wav'
     filepath = "./" + filename_down_sampling
+
     if sampling_frequency % down_sample_rate != 0:
         raise ValueError
 
+    # Sample to Down
     data_down_sampling = np.array([data_wav[down_sample_rate * i]
                                    for i in range(math.trunc(len(data_wav) / down_sample_rate))])
     if np.dtype(data_down_sampling[0]) == "float64":
@@ -100,12 +112,15 @@ class ProcessThread(sthreading.sThread):
                              'frequency': [100, 250, 500, 1000, 2000, 3000, 4000, 6000, 8000],
                              'test': 1}
 
-        # mic stream version(NOT YET)
+        """
+        Preparing......
+        
+        Mic stream version
         # th_extract_data = threading.Thread(target=real_time_stream, name='extract',
         #                                    args=((1, 3), sampling_frequency, False, 50, 200, True, get_input_frame, None, None),
         #                                    daemon=True)
-
         # th_extract_data.start()
+        """
 
     def set_onoff(self, coff):
         if self.active_id_thread in threading.enumerate():
@@ -115,11 +130,10 @@ class ProcessThread(sthreading.sThread):
             self.set_coff(coff)
 
     def run(self):
+        from realtime_dsp.real_time_dsp_v2 import wave_file_process
         while self._flag:
             time.sleep(0.001)
             if self.switch:
-                from realtime_dsp.real_time_dsp_v2 import wave_file_process
-
                 if self.shared_coff.qsize() > 0:
                     effect = self.shared_coff.get_nowait()
                 else:

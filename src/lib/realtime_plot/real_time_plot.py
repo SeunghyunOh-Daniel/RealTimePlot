@@ -1,5 +1,5 @@
 """
-Real-time scrolling multi-plot over time.
+Real-time Plot over time.
 
 Requires: matplotlib
           numpy
@@ -18,8 +18,10 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 """
 
+# --------------------------------------------------------------------------------------------------------------------------------------
+
+# Library
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import numpy as np
 import threading
 import tkinter as tk
@@ -30,9 +32,10 @@ try:
 except:
     from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg as nav_tool
 
-import time
 import queue
 
+
+# --------------------------------------------------------------------------------------------------------------------------------------
 
 def _check_param(nrows, propvals, propname, dflt):
     """
@@ -88,27 +91,30 @@ class RealtimePlotter(tk.Frame):
         styles           plot styles (e.g., 'b-', 'r.'; default='b-')
         yticks           Y-axis tick / grid positions
         legends          list of legends for each subplot
-        interval_msec    animation update in milliseconds
+        interval         update in milliseconds
+        sampling_rate    The number of points per 1 second
 
         For overlaying plots, use a tuple for styles; e.g., styles=[('r','g'), 'b']
         """
-        import time
-        tic = time.perf_counter()
-        # Variable for GUI
+
+        # For implementing to tkinter
         super().__init__()
 
+        # Variable for getting from GUI
         self.parent = parent
         self.var = tk.IntVar()
-        self.interval = tk.DoubleVar()
-        self.queue = queue.Queue()
+        # self.interval = tk.DoubleVar()
+        self.queue_plot = queue.Queue()
 
+        """ 
+        block_size: Window size of FFT
+        """
         self.block_size = 0
         self.thread_UpdatePlotFrame = None
-        self.dsp_thread = None
-        self.id_after = None
+        self.id_after_tk = None
 
         self.operation_mode = ('Exponential', 'Normal',)
-        self.plot_queue = queue.Queue()
+        self.queue_shared = queue.Queue()
 
         # Row count is provided by Y-axis limits
         nrows = len(ylims)
@@ -119,10 +125,6 @@ class RealtimePlotter(tk.Frame):
         yticks = _check_param(nrows, yticks, 'yticks', [])
         self.legends = _check_param(nrows, legends, 'legends', [])
 
-        # sampling frequency
-        if sampling_rate is None:
-            raise ValueError
-
         # Get the current plot
         self.fig = plt.gcf()
 
@@ -131,6 +133,9 @@ class RealtimePlotter(tk.Frame):
         ncols = 2 if phase_limits else 1
         self.sideline = None
 
+        """
+        PREPARING...
+            - Phase Domain
         if phase_limits:
             side = plt.subplot(1, 2, 1)
             # Phase Plot square shape
@@ -138,8 +143,9 @@ class RealtimePlotter(tk.Frame):
             self.sideline = side.plot(y, y, 'o', animated=True)
             side.set_xlim(phase_limits[0])
             side.set_ylim(phase_limits[1])
+        """
 
-        # locate the axes(plot)
+        # Locate the axes for plotting
         for k in range(nrows):
             self.axes[k] = plt.subplot(nrows, ncols, ncols * (k + 1))
         self.window_name = 'RealtimePlotter' if window_name is None else window_name
@@ -148,31 +154,35 @@ class RealtimePlotter(tk.Frame):
         self.fig.canvas.mpl_connect('close_event', self.handleClose)
         self.is_open = True
 
+        # Initialize x-axis, y-axis based on sampling-rate
         self.sampling_rate = sampling_rate
         len_xaxis = int(total_time * self.sampling_rate)
-        self.t = np.arange(0, len_xaxis)
-        amplitudes = np.zeros(len_xaxis)
+        self.xaxis = np.arange(0, len_xaxis)
+        yaxix = np.zeros(len_xaxis)
 
+        # Draw the axes
         self.lines = []
         for j in range(len(styles)):
             style = styles[j]
             ax = self.axes[j]
             legend = self.legends[j] if len(self.legends) > 0 else None
             styles_for_row = style if type(style) == tuple else [style]
+
             for k in range(len(styles_for_row)):
                 label = legend[k] if legend and len(legend) > 0 else ''
-                self.lines.append(ax.plot(self.t, amplitudes, styles_for_row[k], label=label)[0])
-                # , animated=True
+                self.lines.append(ax.plot(self.xaxis, yaxix, styles_for_row[k], label=label)[0])
+                # If want a animation option, add "animated=True"
+
             if legend is not None and len(legend) > 0:
                 ax.legend()
 
-        # Create baselines, initially hidden
-        self.baselines = [axis.plot(self.t, amplitudes, 'k', animated=True)[0] for axis in self.axes]
+        """Create baselines, initially hidden"""
+        self.baselines = [axis.plot(self.xaxis, yaxix, 'k', animated=True)[0] for axis in self.axes]
         self.baseflags = [False] * nrows
 
-        # Add properties as specified
-        # Set axis limits, ticks, gridlines, hide x axis tics and lables
+        """Add properties as specified"""
         for axis, ylabel, ylim, ytick in zip(self.axes, ylabels, ylims, yticks):
+            # Set axis limits, ticks, gridlines, hide x axis tics and lables
             axis.set_xlim((0, len_xaxis))
             axis.set_ylim(ylim)
             axis.yaxis.set_ticks(ytick)
@@ -187,28 +197,32 @@ class RealtimePlotter(tk.Frame):
                            zip(self.axes, ylims)] \
             if show_yvals else []
 
+        """Implement the plot_frame to parent"""
         from tkinter import ttk
         plot_frame = ttk.Frame(self.parent)
         plot_frame.grid(row=10, column=0, columnspan=10, sticky='WE',
                         padx=5, pady=5, ipadx=5, ipady=5)
-        # combine Figure to Canvas
 
-        # Ref. https://wikidocs.net/14605#gca-gcf-axis
+        # Set the size of plot figure
         self.fig.set_size_inches(16, 5)
+
+        # Combine Figure to Canvas
         self.canvas = FigureCanvasTkAgg(self.fig, plot_frame)
 
+        # Implement
         toolbar = nav_tool(self.canvas, plot_frame)
         toolbar.update()
         self.canvas.tkcanvas.pack(fill=tk.BOTH, expand=1)
-        print(f"Init time {time.perf_counter() - tic}")
 
     def quit(self):
+        """
+        Terminate the Entire Program
+        """
         if self.thread_UpdatePlotFrame is not None:
             if threading.active_count() != 0:
                 self.thread_UpdatePlotFrame.stop()
-
-        self.after_cancel(self.id_after)
-        self.id_after = None
+        self.after_cancel(self.id_after_tk)
+        self.id_after_tk = None
 
     def launch_thread(self):
         """
@@ -217,31 +231,46 @@ class RealtimePlotter(tk.Frame):
         self.on_realtime_plot()
 
     def reset_plot(self):
-        self.queue.__init__()
-        self.plot_queue.__init__()
+        """
+        Initialize the plot data
+        """
+        self.queue_plot.__init__()
+        self.queue_shared.__init__()
 
     def update_(self, frame):
-        self.plot_queue.put(frame)
+        """
+        Update from other object
+        """
+        self.queue_shared.put(frame)
 
     def on_realtime_plot(self, evt=None):
         if self.thread_UpdatePlotFrame is not None:
             self.thread_UpdatePlotFrame.stop()
 
         from realtime_plot import update_plot_thread
-        self.thread_UpdatePlotFrame = update_plot_thread.UpdatePlotThread(self.var, self.operation_mode, self.interval,
-                                                                          self.queue, self.plot_queue)
+        self.thread_UpdatePlotFrame = update_plot_thread.UpdatePlotThread(var=self.var,
+                                                                          operation_mode=self.operation_mode,
+                                                                          interval=self.interval,
+                                                                          queue_plot=self.queue_plot,
+                                                                          queue_shared=self.queue_shared)
         self.thread_UpdatePlotFrame.start()
         self.periodic_call()
 
     def periodic_call(self):
+        """
+        Periodically check the plot data
+        """
         self.checkqueue()
         if self.thread_UpdatePlotFrame.is_alive():
-            self.id_after = self.after(1, self.periodic_call)
+            self.id_after_tk = self.after(1, self.periodic_call)
         else:
             pass
 
     def checkqueue(self):
-        while self.queue.qsize():
+        """
+        Plot the updated data
+        """
+        while self.queue_plot.qsize():
             try:
                 args = self._update_frame()
                 self.canvas.draw()
@@ -250,13 +279,6 @@ class RealtimePlotter(tk.Frame):
                 pass
         else:
             pass
-
-    def getValues(self):
-        """
-        Override this method to return actual Y values at current time.
-        """
-
-        return
 
     def get_frame(self, frame):
         """
@@ -297,25 +319,26 @@ class RealtimePlotter(tk.Frame):
         data[-1 * len(newval):] = newval
         setter(data)
 
-    # Update x value
     @classmethod
     def rollx(cls, line, newval):
+        # Update x value
         RealtimePlotter.roll(line.get_xdata, line.set_xdata, line, newval)
 
-    # Update y value
     @classmethod
     def rolly(cls, line, newval):
+        # Update y value
         RealtimePlotter.roll(line.get_ydata, line.set_ydata, line, newval)
 
-    # Update frame value
     @classmethod
     def rollframe(cls, line, new_frame):
+        # Update frame value
         RealtimePlotter.roll(line.get_ydata, line.set_ydata, line, new_frame)
 
     def _update_frame(self, frame_bias=0):
         def _update(frame):
             # Time domain
             yvals = frame[1], None
+
             # Current Point and Represent Text
             # for k, text in enumerate(self.axis_texts):
             #     text.set_text('%+f' % yvals[k])
@@ -323,7 +346,7 @@ class RealtimePlotter(tk.Frame):
             for row, line in enumerate(self.lines, start=1):
                 RealtimePlotter.rollframe(line, yvals[row - 1])
 
-        frame = self.queue.get()
+        frame = self.queue_plot.get()
 
         if frame[0] == 0:
             if self.block_size == 0:
@@ -338,13 +361,7 @@ class RealtimePlotter(tk.Frame):
             else:
                 _update(frame)
 
-        # sideline(for phase), lines, baseline, text
+        # parameter based on animation options
         return (self.sideline if self.sideline is not None else []) + \
                self.lines + [baseline for baseline, flag in zip(self.baselines, self.baseflags) if flag] + \
                self.axis_texts
-
-    def reset(self):
-        print("reset")
-        self.after_cancel(self.id_after)
-        if self.thread_UpdatePlotFrame is not None:
-            self.thread_UpdatePlotFrame.stop()

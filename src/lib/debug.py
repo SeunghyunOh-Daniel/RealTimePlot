@@ -1,3 +1,8 @@
+"""
+Print Error location, contexts
+"""
+
+
 def print_debug():
     import sys, traceback
     exc_type, exc_obj, exc_tb = sys.exc_info()
