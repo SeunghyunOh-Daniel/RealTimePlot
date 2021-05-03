@@ -212,7 +212,8 @@ class RealtimePlotter(tk.Frame):
         # Implement
         toolbar = nav_tool(self.canvas, plot_frame)
         toolbar.update()
-        self.canvas.tkcanvas.pack(fill=tk.BOTH, expand=1)
+        # self.canvas.tkcanvas.pack(fill=tk.BOTH, expand=1)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1)
 
     def quit(self):
         """

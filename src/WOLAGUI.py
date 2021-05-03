@@ -36,8 +36,11 @@ from sthread import sthreading
 audiogram_table = (100, 250, 500, 1000, 2000, 3000, 4000, 6000, 8000)
 
 # Screen Size
-user32 = ctypes.windll.user32
-screensize = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+from PIL import ImageGrab
+img = ImageGrab.grab()
+# user32 = ctypes.windll.user32
+# screensize = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+screensize = img.size[0], img.size[1]
 percentOfWidth = 1
 # 0.86
 percentOfHeight = 1
@@ -222,44 +225,6 @@ class simulator(tk.Tk):
                          'COMPRESSION': "OFF",
                          'EQ': [0.1, 0.2, 0.1, 0.2, 0.1, 0.2, 0.1, 0.2, 0.1, 0.1]}
 
-        # Feature table for compression operation
-        self.compression_features = {
-            'GENDER': {'option': {'Male': 1,
-                                  'Female': 2,
-                                  'Unknown': 0},
-                       'value': tk.StringVar()},
-
-            'TONAL': {'option': {'Tonal': 1,
-                                 'Non-Tonal': 0},
-                      'value': tk.StringVar()},
-
-            'EXPERIENCE': {'option': {'Experienced': 0,
-                                      'New User': 1},
-                           'value': tk.StringVar()},
-
-            'FREQUENCY': {'option': audiogram_table,
-                          'value': audiogram_table},
-
-            'AUDIOGRAM_LEFT': {'option': 0,
-                               'value': (0,) * 9},
-
-            'AUDIOGRAM_RIGHT': {'option': 0,
-                                'value': (0,) * 9},
-
-            'SPEAKER_CALIBRATION': {'option': 0,
-                                    'value': default_speaker_calibration}
-        }
-
-        # Init for First Screen
-        self.compression_features['GENDER']['value'].set('Male')
-        self.compression_features['TONAL']['value'].set('Tonal')
-        self.compression_features['EXPERIENCE']['value'].set('Experienced')
-
-        # Variables temporarily saved on GUI
-        self.textbox_audiogram_left = [tk.IntVar()] * 9
-        self.textbox_audiogram_right = [tk.IntVar()] * 9
-        self.textbox_speakerCalibration = [tk.Entry(None)] * 2
-
         # Make the component on Plot Frame
         self.create_plot()
 
@@ -412,57 +377,6 @@ class simulator(tk.Tk):
         self.tops_flag['ATTACK&RELEASE'] = 0
         self.top_attack_release.destroy()
 
-    def set_comp(self):
-        audiogram_left = [0] * len(self.textbox_audiogram_left)
-        audiogram_right = [0] * len(audiogram_left)
-
-        try:
-            for index, left_value in enumerate(self.textbox_audiogram_left):
-                if left_value.get() == '':
-                    left = 0
-                else:
-                    left = int(left_value.get())
-
-                if self.textbox_audiogram_right[index].get() == '':
-                    right = 0
-                else:
-                    right = int(self.textbox_audiogram_right[index].get())
-                audiogram_left[index] = left
-                audiogram_right[index] = right
-
-            self.compression_features['AUDIOGRAM_LEFT']['value'] = tuple(audiogram_left)
-            self.compression_features['AUDIOGRAM_RIGHT']['value'] = tuple(audiogram_right)
-
-            self.tops_flag['COMPRESSION'] = 0
-            self.top_compression.destroy()
-
-        except ValueError:
-            messagebox.showerror("error", 'ValueError: invalid literal for integer with base 10:',
-                                 parent=self.top_compression)
-
-    def set_sc(self):
-        num_channel = self.textbox_speakerCalibration[0].get()
-        text = self.textbox_speakerCalibration[1].get().split(',')
-        if text[-1] == '':
-            text = text[:-1]
-        else:
-            if len(text) != int(num_channel):
-                messagebox.showerror("error", "value wrong: the number of channel is mismatched",
-                                     parent=self.top_setting_calibration)
-            else:
-                try:
-                    for index, val in enumerate(text):
-                        text[index] = float(val)
-
-                    self.compression_features['SPEAKER_CALIBRATION']['value'] = tuple(text)
-
-                    # Close the tk
-                    self.tops_flag['SET_CALIBRATION'] = 0
-                    self.top_setting_calibration.destroy()
-                except ValueError:
-                    messagebox.showerror("error", 'ValueError: invalid literal for float() with base 10:',
-                                         parent=self.top_setting_calibration)
-
     def open_window(self, value):
         # Make the windows in each of cases
         if self:
@@ -491,53 +405,8 @@ class simulator(tk.Tk):
                 create_buttons(eq_frame, int(x / 2) - 1, 3, None, "SET VALUE", self.set_eq_coefficent)
 
             elif value == "COMPRESSION":
-                self.tops_flag[value] = 1
-                self.top_compression = tk.Toplevel()
-                cp_frame = ttk.LabelFrame(self.top_compression, text="Compressor", height=270, width=100)
-                cp_frame.grid(row=6, columnspan=10, sticky='WE',
-                              padx=5, pady=5, ipadx=5, ipady=5)
-
-                # Title
-                create_label(cp_frame, 1, 0, 'NALNL2 TEST')
-
-                number_compression_features = len(self.compression_features.keys())
-                for index, name_data in enumerate(self.compression_features.keys()):
-                    create_label(cp_frame, 0, index + 1, name_data)
-
-                create_drop(cp_frame, 1, 1,
-                            self.compression_features['GENDER']['value'],
-                            self.compression_features['GENDER']['option'].keys())
-
-                create_drop(cp_frame, 1, 2,
-                            self.compression_features['TONAL']['value'],
-                            self.compression_features['TONAL']['option'].keys())
-
-                create_drop(cp_frame, 1, 3,
-                            self.compression_features['EXPERIENCE']['value'],
-                            self.compression_features['EXPERIENCE']['option'].keys())
-
-                x_index = 1
-                for index, frequency in enumerate(self.compression_features['FREQUENCY']['option']):
-                    create_label(cp_frame, x_index, 4, frequency)
-                    self.textbox_audiogram_left[index] = create_textbox(parent=cp_frame,
-                                                                        location_x=x_index,
-                                                                        location_y=5,
-                                                                        value=
-                                                                        self.compression_features['AUDIOGRAM_LEFT']
-                                                                        ['value'][index])
-                    self.textbox_audiogram_right[index] = create_textbox(parent=cp_frame,
-                                                                         location_x=x_index,
-                                                                         location_y=6,
-                                                                         value=self.compression_features[
-                                                                             'AUDIOGRAM_RIGHT']
-                                                                         ['value'][index])
-                    x_index += 1
-
-                create_buttons(cp_frame, 1, 7, None, "OPEN CALIBRATION SETTING",
-                               self.setSpeakerCalibration)
-
-                create_buttons(cp_frame, 5, number_compression_features + 2, None, "SET VALUE", self.set_comp)
-                self.top_compression.protocol("WM_DELETE_WINDOW", self.on_exit_cp)
+                from tkinter import messagebox
+                messagebox.showinfo("", "Service Preparing...")
 
             elif value == "ATTACK&RELEASE":
                 self.tops_flag[value] = 1

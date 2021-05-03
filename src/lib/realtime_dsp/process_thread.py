@@ -77,16 +77,17 @@ def down_sampling(sampling_frequency, data_wav, sample_rate):
 
 
 # import wav file or mic data
-print(f"file export: {config.local_data_path}")
-wav_list = import_wav(config.local_data_path)
-file_wav = wav_list[0]
-
-print(f"File: {file_wav}")
-sampling_frequency, data_wav = wav.read(file_wav)
-rate_down_sampling = 1
-
-sampling_frequency, path_data = down_sampling(sampling_frequency, data_wav, rate_down_sampling)
-print(f"Sampling frequency {sampling_frequency}")
+# print(f"file export: {config.local_data_path}")
+# wav_list = import_wav(config.local_data_path)
+# file_wav = wav_list[0]
+#
+# print(f"File: {file_wav}")
+# sampling_frequency, data_wav = wav.read(file_wav)
+# rate_down_sampling = 1
+#
+# sampling_frequency, path_data = down_sampling(sampling_frequency, data_wav, rate_down_sampling)
+# print(f"Sampling frequency {sampling_frequency}")
+path_data = "down_sampling.wav"
 
 
 class ProcessThread(sthreading.sThread):
